@@ -1,0 +1,237 @@
+
+使用OpenSSL生成证书
+
+下载安装openssl(把ssl目录下的openssl.cnf 拷贝到当前目录下）
+
+
+1.首先要生成服务器端的私钥(key文件):
+[root@localhost opensslKey]# cp /usr/local/ssl/bin/openssl.cnf ./
+[root@localhost opensslKey]# ls
+openssl.cnf
+[root@localhost opensslKey]# openssl genrsa -des3 -out server.key 1024
+Generating RSA private key, 1024 bit long modulus
+.++++++
+.......++++++
+e is 65537 (0x10001)
+Enter pass phrase for server.key:
+Verifying - Enter pass phrase for server.key:
+[root@localhost opensslKey]# ls
+openssl.cnf  server.key
+[root@localhost opensslKey]#
+
+
+运行时会提示输入密码,此密码用于加密key文件(参数des3便是指加密算法,当然也可以选用其他你认为安全的算法.),
+以后每当需读取此文件(通过openssl提供的命令或API)都需输入口令.如果觉得不方便,也可以去除这个口令,但一定要采取其他的保护措施!
+
+
+去除key文件口令的命令:
+[root@localhost opensslKey]# openssl rsa -in server.key -out server.key
+Enter pass phrase for server.key:
+writing RSA key
+[root@localhost opensslKey]# ls
+openssl.cnf  server.key
+
+
+2.生成Certificate Signing Request（CSR）,生成的csr文件交给CA签名后形成服务端自己的证书.屏幕上将有提示,依照其指示一步一步输入要求的个人信息即可.
+[root@localhost opensslKey]# openssl req -new -key server.key -out server.csr -config openssl.cnf
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:zh
+State or Province Name (full name) [Some-State]:gd
+Locality Name (eg, city) []:sz
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:xzwd
+Organizational Unit Name (eg, section) []:serverteam
+Common Name (e.g. server FQDN or YOUR name) []:flylove
+Email Address []:123456@qq.com
+
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:123456
+An optional company name []:123456
+[root@localhost opensslKey]# ls
+openssl.cnf  server.csr  server.key
+[root@localhost opensslKey]#
+
+3.对客户端也作同样的命令生成key及csr文件:
+[root@localhost opensslKey]# openssl genrsa -des3 -out client.key 1024
+Generating RSA private key, 1024 bit long modulus
+........................++++++
+..................................................++++++
+e is 65537 (0x10001)
+Enter pass phrase for client.key:
+Verifying - Enter pass phrase for client.key:
+[root@localhost opensslKey]# ls
+client.key  openssl.cnf  server.csr  server.key
+
+[root@localhost opensslKey]# openssl req -new -key client.key -out client.csr -config openssl.cnf
+Enter pass phrase for client.key:
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:zh
+State or Province Name (full name) [Some-State]:gd
+Locality Name (eg, city) []:sz
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:xzwd
+Organizational Unit Name (eg, section) []:serverteam
+Common Name (e.g. server FQDN or YOUR name) []:flylove
+Email Address []:123456@qq.com
+
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:123456
+An optional company name []:123456
+[root@localhost opensslKey]#
+
+4.CSR文件必须有CA的签名才可形成证书.可将此文件发送到verisign等地方由它验证,要交一大笔钱,所以这里自己做CA
+[root@localhost opensslKey]# openssl req -new -x509 -keyout ca.key -out ca.crt -config openssl.cnf
+Generating a 1024 bit RSA private key
+....................++++++
+......................++++++
+writing new private key to 'ca.key'
+Enter PEM pass phrase:
+Verifying - Enter PEM pass phrase:
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:zh
+State or Province Name (full name) [Some-State]:gd
+Locality Name (eg, city) []:sz
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:xzwd
+Organizational Unit Name (eg, section) []:serverteam
+Common Name (e.g. server FQDN or YOUR name) []:flylove
+Email Address []:123456@qq.com
+[root@localhost opensslKey]# ls
+ca.crt  ca.key  client.csr  client.key  openssl.cnf  server.csr  server.key
+[root@localhost opensslKey]#
+
+
+4.在继续下面操作前，将openssl.conf文件打开，查看其dir路径将其修改为dir = /media/sf_eshare/Github/opensslKey/demoCA，(跟后面创建的路径一致)否则下面的步骤会提示路径无法找到。
+mkdir demoCA
+mkdir demoCA/newcerts
+创建空文件（文件必须是空的）
+touch demoCA/index.txt
+创建一个任意数据的文件
+vi demoCA/serial  写入0011，保存退出
+
+如：
+[root@localhost opensslKey]# mkdir demoCA
+[root@localhost opensslKey]# mkdir demoCA/newcerts
+[root@localhost opensslKey]# touch demoCA/index.txt
+[root@localhost opensslKey]# vi demoCA/serial
+
+5.用生成的CA的证书为刚才生成的server.csr,client.csr文件签名
+[root@localhost opensslKey]# openssl ca -in server.csr -out server.crt -cert ca.crt -keyfile ca.key -config openssl.cnf
+Using configuration from openssl.cnf
+Enter pass phrase for ca.key:
+Check that the request matches the signature
+Signature ok
+Certificate Details:
+Serial Number: 17 (0x11)
+Validity
+Not Before: Jun  8 09:06:16 2015 GMT
+Not After : Jun  7 09:06:16 2016 GMT
+Subject:
+countryName               = zh
+stateOrProvinceName       = gd
+organizationName          = xzwd
+organizationalUnitName    = serverteam
+commonName                = flylove
+emailAddress              = 123456@qq.com
+X509v3 extensions:
+X509v3 Basic Constraints:
+CA:FALSE
+Netscape Comment:
+OpenSSL Generated Certificate
+X509v3 Subject Key Identifier:
+44:2B:F9:2A:83:9F:DA:E4:F5:29:70:EF:93:34:60:BE:6D:D2:DC:95
+X509v3 Authority Key Identifier:
+keyid:39:22:D1:8E:AB:CD:12:74:B9:11:CE:9A:A4:3A:50:4E:FE:F2:9A:02
+
+
+Certificate is to be certified until Jun  7 09:06:16 2016 GMT (365 days)
+Sign the certificate? [y/n]:y
+
+
+
+
+1 out of 1 certificate requests certified, commit? [y/n]y
+Write out database with 1 new entries
+Data Base Updated
+[root@localhost opensslKey]#
+
+openssl ca -in client.csr -out client.crt -cert ca.crt -keyfile ca.key -config openssl.cnf
+这句有个问题，因为前面使用的common name使用的相同，所以需要修改一个文件：demoCA/index.txt.attr
+将里面的：unique_subject = yes  改为 unique_subject = no，保存退出
+
+[root@localhost opensslKey]# openssl ca -in client.csr -out client.crt -cert ca.crt -keyfile ca.key -config openssl.cnf
+Using configuration from openssl.cnf
+Enter pass phrase for ca.key:
+Check that the request matches the signature
+Signature ok
+Certificate Details:
+Serial Number: 18 (0x12)
+Validity
+Not Before: Jun  8 09:09:19 2015 GMT
+Not After : Jun  7 09:09:19 2016 GMT
+Subject:
+countryName               = zh
+stateOrProvinceName       = gd
+organizationName          = xzwd
+organizationalUnitName    = serverteam
+commonName                = flylove
+emailAddress              = 123456@qq.com
+X509v3 extensions:
+X509v3 Basic Constraints:
+CA:FALSE
+Netscape Comment:
+OpenSSL Generated Certificate
+X509v3 Subject Key Identifier:
+B0:62:5C:4A:58:F2:B0:55:CB:11:C1:B0:CE:2C:93:64:86:9E:6C:3D
+X509v3 Authority Key Identifier:
+keyid:39:22:D1:8E:AB:CD:12:74:B9:11:CE:9A:A4:3A:50:4E:FE:F2:9A:02
+
+
+Certificate is to be certified until Jun  7 09:09:19 2016 GMT (365 days)
+Sign the certificate? [y/n]:y
+
+
+
+
+1 out of 1 certificate requests certified, commit? [y/n]y
+Write out database with 1 new entries
+Data Base Updated
+[root@localhost opensslKey]#
+
+再次执行成功，现在我们所需的全部文件便生成了.
+
+注意：
+client使用的文件有：ca.crt,client.crt,client.key
+需要注意的是：
+若client端加载了私钥：client.key，在每次链接服务器时，都将会提示输入密码，也许可以跟服务器一样去除key文件口令的命令
+暂时未验证
+
+运行客户端和服务端程序时，首先把stack空间，调大
+ulimit -s  102400
+下面命令可以查看当前系统stack预设空间
+ulimit -a
+server使用的文件有：ca.crt,server.crt,server.key
+---------------------
+作者：fly2010love
+来源：CSDN
+原文：https://blog.csdn.net/fly2010love/article/details/46415307
