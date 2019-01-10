@@ -11,15 +11,13 @@
  #define close(x) closesocket(x) 
 #endif 
 #include <cstdio> 
-#include <string> 
-#define SERVER_PORT 8080 
-#define SERVER_IP "127.0.0.1" 
+#include <string.h> 
+#define SERVER_PORT 8889 
 #define CA_CERT_FILE "server/ca.crt" 
 #define CLIENT_CERT_FILE "server/server.crt" 
 #define CLIENT_KEY_FILE "server/server.key" 
 int main(int argc, char **argv) 
 { 
-	std::string address = SERVER_IP;
 	int nListenFd, nAcceptFd;
 	 #ifdef WIN32 
 	//windows初始化网络环境 
@@ -34,10 +32,6 @@ int main(int argc, char **argv)
 	#else 
 	printf("Server Running in LINUX\n"); 
 	#endif 
-	if(argc > 1) 
-	{ 
-		address = argv[1]; 
-	} 
 	SSL_METHOD *meth; 
 	SSL_CTX *ctx; 
 	SSL *ssl; 
@@ -92,7 +86,7 @@ int main(int argc, char **argv)
 	// 创建连接  
 	nFd = ::socket(AF_INET, SOCK_STREAM, 0); 
 	struct sockaddr_in addr; 
-	addr.sin_addr.s_addr = inet_addr(address.c_str()); 
+	addr.sin_addr.s_addr = htonl(INADDR_ANY); 
 	addr.sin_family = AF_INET; 
 	addr.sin_port = htons(SERVER_PORT); 
 	//bind 服务器 
