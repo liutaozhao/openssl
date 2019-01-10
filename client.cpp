@@ -12,6 +12,7 @@
 #endif 
 #include <cstdio> 
 #include <string> 
+#include <string.h>
 #define SERVER_PORT 8889 
 #define SERVER_IP "127.0.0.1" 
 #define CA_CERT_FILE "client/ca.crt" 
