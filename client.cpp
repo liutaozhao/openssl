@@ -12,7 +12,7 @@
 #endif 
 #include <cstdio> 
 #include <string> 
-#define SERVER_PORT 8080 
+#define SERVER_PORT 8889 
 #define SERVER_IP "127.0.0.1" 
 #define CA_CERT_FILE "client/ca.crt" 
 #define CLIENT_CERT_FILE "client/client.crt" 
@@ -92,10 +92,14 @@ int main(int argc, char **argv)
 #endif
 	// 创建连接  
 	nFd = ::socket(AF_INET, SOCK_STREAM, 0); 
-	struct sockaddr_in addr; addr.sin_addr.s_addr = inet_addr(address.c_str()); 
-	addr.sin_family = AF_INET; addr.sin_port = htons(SERVER_PORT); 
+	struct sockaddr_in addr; 
+	memset(&addr,0,sizeof(addr));
+	//addr.sin_addr.s_addr = inet_addr(address.c_str()); 
+	addr.sin_family = AF_INET; 
+	addr.sin_port = htons(SERVER_PORT); 
+	inet_pton(AF_INET,address.c_str(),&(addr.sin_addr));
 	//链接服务器 
-	if(connect(nFd, (sockaddr *)&addr, sizeof(addr)) < 0) 
+	if(connect(nFd, (struct sockaddr *)&addr, sizeof(addr)) < 0) 
 	{	 
 		printf("connect\n"); 
 		ERR_print_errors_fp(stderr); 
